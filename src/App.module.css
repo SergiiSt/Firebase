@@ -1,0 +1,17 @@
+.heartBtn {
+  cursor: pointer;
+}
+
+.heart {
+  font-size: 50px;
+  /* fill: red; */
+  /* stroke: red; */
+}
+
+.heartFavor {
+  font-size: 50px;
+  fill: red;
+}
+.added {
+  color: red;
+}
