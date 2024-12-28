@@ -11,23 +11,29 @@ import css from "./App.module.css";
 import { IoHeartOutline } from "react-icons/io5";
 import { IoHeartSharp } from "react-icons/io5";
 import { useEffect } from "react";
+import { signOut } from "firebase/auth";
 
 // const auth = getAuth();
 
 // Регистрация пользователя
 
 function App() {
-  const [favorites, setFavorites] = useState([]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [teachers, setTeachers] = useState([]);
   const [user, setUser] = useState(null);
   const [userId, setUserId] = useState("");
 
+  const [favorites, setFavorites] = useState(() => {
+    // Инициализация состояния из localStorage
+    const storedFavorites = localStorage.getItem("favorites");
+    return storedFavorites ? JSON.parse(storedFavorites) : [];
+  });
+
   useEffect(() => {
-    const savedFavorites = localStorage.getItem("favorites");
-    if (savedFavorites) {
-      setFavorites(JSON.parse(savedFavorites));
+    const storedFavorites = localStorage.getItem("favorites");
+    if (storedFavorites) {
+      setFavorites(JSON.parse(storedFavorites));
     }
   }, []);
 
@@ -64,7 +70,6 @@ function App() {
     setEmail("");
     setPassword("");
   };
-
   const getTeachers = async () => {
     if (!user || !user.uid) {
       console.error("User is not logged in");
@@ -72,29 +77,43 @@ function App() {
     }
     const dbRef = ref(db);
     try {
-      const snapshot = await get(child(dbRef, "teachers")); // Запросим раздел teachers
+      const snapshot = await get(child(dbRef, "teachers"));
       if (snapshot.exists()) {
-        setTeachers(Object.values(snapshot.val()));
+        const teachersData = Object.entries(snapshot.val()).map(
+          ([key, value]) => ({
+            id: key, // Используем ключ как id
+            ...value, // Сохраняем остальные данные
+          })
+        );
+        console.log("Teachers with IDs:", teachersData); // Логируем преобразованные данные
+        setTeachers(teachersData);
       } else {
         console.log("No data available");
       }
     } catch (error) {
-      console.log(error.message);
+      console.error("Error fetching teachers:", error.message);
     }
   };
 
   const toggleFavorite = (teacher) => {
-    let updatedFavorites;
-
-    if (favorites.includes(teacher)) {
-      updatedFavorites = favorites.filter((fav) => fav !== teacher);
-    } else {
-      updatedFavorites = [...favorites, teacher];
-    }
+    // Используем ID для проверки избранного
+    const updatedFavorites = favorites.includes(teacher.id)
+      ? favorites.filter((favId) => favId !== teacher.id) // Удаляем из избранного
+      : [...favorites, teacher.id]; // Добавляем в избранное
+    console.log(teacher.id);
 
     setFavorites(updatedFavorites);
 
     localStorage.setItem("favorites", JSON.stringify(updatedFavorites));
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth); // Выход из системы для текущего пользователя
+      console.log("Пользователь успешно вышел");
+    } catch (error) {
+      console.error("Ошибка при выходе:", error);
+    }
   };
 
   return (
@@ -137,6 +156,9 @@ function App() {
           />
           <button type="submit">Signin</button>
         </form>
+        <button type="button" onClick={handleSignOut}>
+          EXIT
+        </button>
       </div>
       <div>
         <h2>Teachers</h2>
@@ -150,20 +172,12 @@ function App() {
                 className={css.heartBtn}
                 onClick={() => toggleFavorite(teacher)}
               >
-                {favorites.includes(teacher) ? (
+                {favorites.includes(teacher.id) ? (
                   <IoHeartSharp className={css.heartFavor} />
                 ) : (
                   <IoHeartOutline className={css.heart} />
                 )}
               </button>
-              {/* <button
-                type="button"
-                className={css.heartBtn}
-                onClick={addFavorite}
-              >
-                <IoHeartOutline className={css.heart} />
-                <IoHeartSharp className={css.heartFavor} />
-              </button> */}
             </li>
           ))}
         </ul>
